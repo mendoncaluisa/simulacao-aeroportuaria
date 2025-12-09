@@ -12,7 +12,6 @@
 #   # embarcado
 #   # preterido (embarque negado)
 
-import simpy
 import random
 
 class Passageiro(object):
@@ -29,7 +28,7 @@ class Passageiro(object):
     def processar(self):
         # Possibilidade de noshow pre checkin
         if random.random() < self.p_noshow_pre_checkin:
-            yield self.env.timeout(random.randint(1, 50))
+            yield self.env.timeout(random.randint(1, 50)) # Não sei bem pra que é essa linha
             self.status = "no-show"
             return
 
