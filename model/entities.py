@@ -22,19 +22,12 @@ class Passageiro(object):
         self.p_noshow_pos_checkin = p_noshow_pos_checkin
         self.status = "reservado"
 
-        # Processo principal
-        self.action = env.process(self.run())
 
-    def processar(self):
-        # Possibilidade de noshow pre checkin
-        if random.random() < self.p_noshow_pre_checkin:
-            yield self.env.timeout(random.randint(1, 50)) # Não sei bem pra que é essa linha
-            self.status = "no-show"
-            return
-
-        # Possibilidade de noshow pre checkin
-        if random.random() < self.p_noshow_pos_checkin:
-            self.status = "no-show"
-            return
-
-
+class Aeronave(object):
+    def __init__(self, env, id, modelo, capacidade, bilhetes_vendidos, horario_voo):
+        self.env = env
+        self.id = id
+        self.modelo = modelo
+        self.capacidade = capacidade
+        self.bilhetes_vendidos = bilhetes_vendidos
+        self.horario_voo = horario_voo
