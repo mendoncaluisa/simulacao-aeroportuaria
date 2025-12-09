@@ -12,23 +12,42 @@
 #   # embarcado
 #   # preterido (embarque negado)
 
-import random
-
-class Passageiro(object):
-    def __init__(self, env, id, p_noshow_pre_checkin, p_noshow_pos_checkin):
-        self.env = env
+class Passanger(object):
+    def __init__(self, id, p_noshow_pre_checkin, p_noshow_pos_checkin):
         self.id = id
         self.p_noshow_pre_checkin = p_noshow_pre_checkin
         self.p_noshow_pos_checkin = p_noshow_pos_checkin
         self.status = "reservado"
 
 
-class Aeronave(object):
-    def __init__(self, env, id, modelo, capacidade, bilhetes_vendidos, horario_voo, limite_overbooking):
-        self.env = env
+# Aviões com suas respectivas capacidades e quantidade máxima de assentos vendidos a mais
+planes = {'Avião A': {
+                'capacity': 175,
+                'overbooking_limit': 2
+            },
+    'Avião B' : {
+        'capacity': 185,
+        'overbooking_limit': 5
+    },
+    'Avião C' : {
+            'capacity': 195,
+            'overbooking_limit': 3
+    },
+    'Avião D' : {
+        'capacity': 300,
+        'overbooking_limit': 7
+    }
+}
+
+class Flight(object):
+    def __init__(self,id, model, capacity, sold_tickets, flight_time, overbooking_limit, quantity_overbooking):
         self.id = id
-        self.modelo = modelo
-        self.capacidade = capacidade
-        self.bilhetes_vendidos = bilhetes_vendidos
-        self.horario_voo = horario_voo
-        self.limite_overbooking = limite_overbooking
+        self.model = model
+        self.capacity = capacity
+        self.sold_tickets = sold_tickets
+        self.flight_time = flight_time
+        self.overbooking_limit = overbooking_limit
+        self.quantity_overbooking = quantity_overbooking
+
+
+
