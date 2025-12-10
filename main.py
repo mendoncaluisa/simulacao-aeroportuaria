@@ -4,6 +4,7 @@ import simpy
 
 import model.processes as processes
 from model.processes import simulate_flight
+import matplotlib.pyplot as plt
 
 RANDOM_SEED = 1
 
@@ -99,6 +100,56 @@ def main():
     print_results(results_cenario_1)
     print('\nCenário 2')
     print_results(results_cenario_2)
+
+    plot_results(results_cenario_1, "Cenário 1 - Estatísticas")
+    plot_results(results_cenario_2, "Cenário 2 - Estatísticas")
+
+
+def plot_results(results, title):
+    # Extrai os dados
+    lucros = [r.lucro for r in results]
+    tickets = [r.qtd_tickets_vendidos for r in results]
+    no_shows = [r.qtd_no_show for r in results]
+    overbooked_percentage = [
+        100 * (r.qtd_overbooked_passengers / r.qtd_tickets_vendidos)
+        for r in results
+    ]
+
+    # Configura layout
+    plt.figure(figsize=(14, 10))
+    plt.suptitle(title, fontsize=16)
+
+    # --- Gráfico 1: Lucro ---
+    plt.subplot(2, 2, 1)
+    plt.hist(lucros, bins=15)
+    plt.title("Distribuição dos Lucros")
+    plt.xlabel("Lucro (R$)")
+    plt.ylabel("Frequência")
+
+    # --- Gráfico 2: Tickets vendidos ---
+    plt.subplot(2, 2, 2)
+    plt.hist(tickets, bins=15)
+    plt.title("Tickets Vendidos")
+    plt.xlabel("Quantidade")
+    plt.ylabel("Frequência")
+
+    # --- Gráfico 3: No-Show ---
+    plt.subplot(2, 2, 3)
+    plt.hist(no_shows, bins=15)
+    plt.title("Distribuição de No-Show")
+    plt.xlabel("Quantidade")
+    plt.ylabel("Frequência")
+
+    # --- Gráfico 4: Overbooking (%) ---
+    plt.subplot(2, 2, 4)
+    plt.hist(overbooked_percentage, bins=15)
+    plt.title("Percentual de Overbooking por Voo")
+    plt.xlabel("% Overbooking")
+    plt.ylabel("Frequência")
+
+    # Ajusta layout
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    plt.show()
 
 
 if __name__ == '__main__':

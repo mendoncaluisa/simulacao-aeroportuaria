@@ -15,6 +15,7 @@ import simpy
 from typing import NamedTuple
 
 
+
 class Passanger(object):
     def __init__(self,fez_noshow_pre_checkin, fez_noshow_pos_checkin):
         self.fez_noshow_pre_checkin = fez_noshow_pre_checkin
