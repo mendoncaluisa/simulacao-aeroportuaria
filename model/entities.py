@@ -16,8 +16,7 @@ from typing import NamedTuple
 
 
 class Passanger(object):
-    def __init__(self, id, fez_noshow_pre_checkin, fez_noshow_pos_checkin):
-        self.id = id
+    def __init__(self,fez_noshow_pre_checkin, fez_noshow_pos_checkin):
         self.fez_noshow_pre_checkin = fez_noshow_pre_checkin
         self.fez_noshow_pos_checkin = fez_noshow_pos_checkin
         self.status = "reservado"
@@ -44,16 +43,15 @@ planes = {
 }
 
 class Flight(object):
-    def __init__(self,id, model, capacity, sold_tickets, flight_time, overbooking_limit, quantity_overbooking):
-        self.id = id
+    def __init__(self, env,model, capacity, sold_tickets, overbooking_limit, quantity_overbooking):
+
         self.model = model
         self.capacity = capacity
         self.sold_tickets = sold_tickets
-        self.flight_time = flight_time
         self.overbooking_limit = overbooking_limit
         self.quantity_overbooking = quantity_overbooking
-        self.seat = simpy.Resource # o recurso do modelo são os assentos do avião
-        self.full = simpy.Event # o evento que é disparado quando o avião enche
+        self.seat = simpy.Resource(env, capacity=capacity) # o recurso do modelo são os assentos do avião
+        self.full = env.event() # o evento que é disparado quando o avião enche
         self.available_seats = self.capacity
 
 class FlightData(NamedTuple):
@@ -63,5 +61,6 @@ class FlightData(NamedTuple):
     qtd_overbooked_passengers: int
     valor_multa: float
     multa_total: int
+    aviao: dict
 
 
