@@ -28,8 +28,7 @@ def simulate_flight(env):
 
     # Sorteio de passagens vendidas (seguindo uma distribuição triangular)
     min = int(plane["capacity"] * 0.90 ) # Vai vender pelo menos 90% da capacidade
-    max = int(plane["capacity"] * 2 )
-    #max = int(plane["capacity"] * (1 + OVERBOOKING_PERC))
+    max = int(plane["capacity"] * (1 + OVERBOOKING_PERC))
     mean = plane["capacity"]
     sold_tickets = int(random.triangular(min, max, mean))
     QTD_TICKETS_VENDIDOS = sold_tickets
@@ -49,7 +48,7 @@ def simulate_flight(env):
 
     # Verifica overbooking, conta quantas pessoas ficaram pra tras
     for passenger in total_passengers:
-        env.process(verifica_overbooking(env, flight, passenger))
+        verifica_overbooking(env, flight, passenger)
 
     # Se TEVE overbooking, calcula a multa
     if QTD_OVERBOOKED_PASSENGERS > 0:
@@ -114,21 +113,13 @@ def no_show_pos_checkin(passengers):
 
 # Calcula a quantidade de passageiros que sofreram overbooking
 def verifica_overbooking(env, flight, passenger):
+    global QTD_OVERBOOKED_PASSENGERS
 
-    with flight.seat.request() as my_seat:
-        # espera até que tenha um assento ou até que o avião esteja cheio
-        result = yield my_seat | flight.full
-
-        # verifica se houve overbooking
-        if my_seat not in result:
-            # Houve overbooking
-            global QTD_OVERBOOKED_PASSENGERS
-            QTD_OVERBOOKED_PASSENGERS += 1
-            passenger.status = "overbooked"
-            return
-
-        # verifica se o passageiro conseguiu pegar um assento
+    if flight.available_seats > 0:
         flight.available_seats -= 1
-        if flight.available_seats == 0 and not flight.full.triggered:
-            flight.full.succeed()
+        passenger.status = 'embarcado'
+        return
 
+    QTD_OVERBOOKED_PASSENGERS += 1
+    passenger.status = 'overbooked'
+    return

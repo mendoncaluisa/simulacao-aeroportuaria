@@ -46,7 +46,8 @@ def main():
 
     # pega os resultados especificos
     multas = [r.multa_total for r in results]
-    overbooked = [r.qtd_overbooked_passengers for r in results]
+    qtd_overbooked = [r.qtd_overbooked_passengers for r in results]
+    #overbooked = [() / ()]
     no_shows = [r.qtd_no_show for r in results]
     tickets = [r.qtd_tickets_vendidos for r in results]
 
@@ -55,7 +56,7 @@ def main():
     print('\n -Resumo das simulações:')
     print(f'\n Total de execuções: n={n}')
     print(f'\n Media de multas: {statistics.mean(multas)}')
-    print(f'\n Media de overbooked: {statistics.mean(overbooked)}')
+    print(f'\n Media de overbooked: {statistics.mean(qtd_overbooked)}')
     print(f'\n Media de no-shows: {statistics.mean(no_shows)}')
     print(f'\n Media de tickets vendidos: {statistics.mean(tickets)}')
 
