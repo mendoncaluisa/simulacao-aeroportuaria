@@ -4,6 +4,7 @@ import simpy
 
 RANDOM_SEED = 1
 
+
 # Configura e inicia a simulação
 print('Simulação Overbooking')
 random.seed(RANDOM_SEED)
