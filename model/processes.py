@@ -1,6 +1,5 @@
-from fontTools.ttLib.tables.S__i_l_f import pass_attrs_fsm
-
 import random
+import simpy
 
 from model.entities import FlightData
 from model.entities import Flight
@@ -8,63 +7,73 @@ from model.entities import planes
 from model.entities import Passanger
 
 QTD_NO_SHOW = 0
+QTD_NO_SHOW_POS_CHECKIN = 0
 QTD_TICKETS_VENDIDOS = 0
 QTD_CHECKIN = 0
 QTD_OVERBOOKED_PASSENGERS = 0
+
 VALOR_MULTA = 1200
 MULTA_TOTAL = 0
-QTD_NO_SHOW_POS_CHECKIN = 0
+VALOR_PASSAGEM = 300
+PASSAGEM_TOTAL = 0
 
-
-# Porcentagem maxima de tickets acima da capacidade que podem ser vendidos
-OVERBOOKING_PERC = 0.1
 
 # Simula um vôo só, retorna os seus dados
-def simulate_flight(env):
+def simulate_flight(env, overbooking_perc):
     passengers = []
-    global QTD_NO_SHOW, QTD_TICKETS_VENDIDOS, QTD_CHECKIN, QTD_OVERBOOKED_PASSENGERS, VALOR_MULTA, MULTA_TOTAL
+    global QTD_NO_SHOW, QTD_NO_SHOW_POS_CHECKIN, QTD_TICKETS_VENDIDOS, QTD_CHECKIN, QTD_OVERBOOKED_PASSENGERS, VALOR_MULTA, VALOR_PASSAGEM, MULTA_TOTAL, PASSAGEM_TOTAL
     plane_key = random.choice(list(planes.keys()))
     plane = planes[plane_key]
 
     # Sorteio de passagens vendidas (seguindo uma distribuição triangular)
-    min = int(plane["capacity"] * 0.90 ) # Vai vender pelo menos 90% da capacidade
-    max = int(plane["capacity"] * 2 )
-    #max = int(plane["capacity"] * (1 + OVERBOOKING_PERC))
+    min = int(plane["capacity"] * 0.90)  # Vai vender pelo menos 90% da capacidade
+    max = int(plane["capacity"] * (1 + overbooking_perc))
     mean = plane["capacity"]
     sold_tickets = int(random.triangular(min, max, mean))
     QTD_TICKETS_VENDIDOS = sold_tickets
-    print(f'debug sold_tickets: {sold_tickets}')
 
     # Aqui a gente inicia os passageiros
-    yield env.process(simulate_checkin(env,passengers))
+    yield env.process(simulate_checkin(env, passengers))
 
     # Calcula no_show após check_in
     no_show_pos_checkin(passengers)
 
-    #Instancia um objeto Flight. Inicialmente o voo possui um overbooking igual a 0
-    flight = Flight(env, plane_key, plane["capacity"], sold_tickets,plane["overbooking_limit"],0)
-    yield env.timeout(50) # 10 minutos antes do vôo decolar, o próximo passo será executado. O próximo passo consiste em verificar se houve overbooking
+    # Instancia um objeto Flight. Inicialmente o voo possui um overbooking igual a 0
+    flight = Flight(env, plane_key, plane["capacity"], sold_tickets, plane["overbooking_limit"], 0)
+    yield env.timeout(
+        50)  # 10 minutos antes do vôo decolar, o próximo passo será executado. O próximo passo consiste em verificar se houve overbooking
 
     total_passengers = [passenger for passenger in passengers if passenger.status == 'presente']
 
     # Verifica overbooking, conta quantas pessoas ficaram pra tras
-    for passenger in total_passengers:
-        env.process(verifica_overbooking(env, flight, passenger))
+    # é uma lista de processos, cada um representando um passageiro
+    boarding_procs = [env.process(embarque(env, flight, passenger)) for passenger in total_passengers]
+    if boarding_procs:
+        yield simpy.events.AllOf(env, boarding_procs)  # espera até que todos os processos (passageiros) embarquem
 
     # Se TEVE overbooking, calcula a multa
     if QTD_OVERBOOKED_PASSENGERS > 0:
         MULTA_TOTAL = QTD_OVERBOOKED_PASSENGERS * VALOR_MULTA
 
+    # Calcula quanto eles ganharam com passagens vendidas
+    PASSAGEM_TOTAL = QTD_TICKETS_VENDIDOS * VALOR_PASSAGEM
+
+    # Calcula o lucro
+    LUCRO = PASSAGEM_TOTAL - MULTA_TOTAL
+
     # Atribui todos os dados coletados a uma classe e retorna ela
     flightData = FlightData(
-        qtd_no_show = QTD_NO_SHOW,
-        qtd_no_show_pos_checkin = QTD_NO_SHOW_POS_CHECKIN,
-        qtd_tickets_vendidos = QTD_TICKETS_VENDIDOS,
-        qtd_checkin = QTD_CHECKIN,
-        qtd_overbooked_passengers = QTD_OVERBOOKED_PASSENGERS,
-        valor_multa = VALOR_MULTA,
-        multa_total = MULTA_TOTAL,
-        aviao = plane
+        qtd_no_show=QTD_NO_SHOW,
+        qtd_no_show_pos_checkin=QTD_NO_SHOW_POS_CHECKIN,
+        qtd_tickets_vendidos=QTD_TICKETS_VENDIDOS,
+        qtd_checkin=QTD_CHECKIN,
+        qtd_overbooked_passengers=QTD_OVERBOOKED_PASSENGERS,
+        valor_multa=VALOR_MULTA,
+        multa_total=MULTA_TOTAL,
+        valor_passagem=VALOR_PASSAGEM,
+        passagem_total=PASSAGEM_TOTAL,
+        lucro=LUCRO,
+        aviao=plane
     )
 
     return flightData
@@ -77,21 +86,19 @@ def simulate_checkin(env, passengers):
     tickets_vendidos = QTD_TICKETS_VENDIDOS
     while tickets_vendidos > 0:
         # Sorteio da probabilidade de no-show antes do check-in
-        fez_noshow_pre_checkin = random.random() < 0.08 # A probabilidade de no_show antes do checkin é maior
+        fez_noshow_pre_checkin = random.random() < 0.08  # A probabilidade de no_show antes do checkin é maior
 
         if fez_noshow_pre_checkin:
             global QTD_NO_SHOW
             QTD_NO_SHOW += 1
-            passenger = Passanger( True, False)
+            passenger = Passanger(True, False)
             passenger.status = 'no-show pre checkin'
-            #print('debug: passageiro fez no-show antes do checkin!\n')
-        else: # Se o passageiro nao fez no_show antes do check-in ele vai pra proxima etapa, que é o check-in.
+        else:  # Se o passageiro nao fez no_show antes do check-in ele vai pra proxima etapa, que é o check-in.
             passenger = Passanger(False, False)
             passenger.status = 'presente'
-            yield env.timeout(random.triangular(0.5,3,1))
+            yield env.timeout(random.triangular(0.5, 3, 1))
             global QTD_CHECKIN
             QTD_CHECKIN += 1
-            #print('debug: passageiro fez checkin!\n')
         passengers.append(passenger)
 
         tickets_vendidos -= 1
@@ -105,30 +112,47 @@ def no_show_pos_checkin(passengers):
             fez_noshow_pos_checkin = random.random() < 0.03  # A probabilidade de no_show depois do check-in
             if fez_noshow_pos_checkin:
                 global QTD_NO_SHOW, QTD_NO_SHOW_POS_CHECKIN
-                #QTD_NO_SHOW += 1
+                # QTD_NO_SHOW += 1
                 passenger.fez_noshow_pos_checkin = True
                 passenger.status = 'no-show pos checkin'
                 QTD_NO_SHOW_POS_CHECKIN += 1
-                #print('debug: passageiro fez no-show apos o checkin!\n')
+
+
+def embarque(env, flight, passenger):
+    # passageiro chega no portão em tempos diferentes
+    chegada = random.triangular(0, 10, 5)
+    yield env.timeout(chegada)
+
+    # agora ele tenta embarcar
+    yield env.process(verifica_overbooking(env, flight, passenger))
 
 
 # Calcula a quantidade de passageiros que sofreram overbooking
 def verifica_overbooking(env, flight, passenger):
+    # espera até que tenha um assento ou até que o avião esteja cheio
+    my_seat = flight.seat.request()
+    result = yield my_seat | flight.full
 
-    with flight.seat.request() as my_seat:
-        # espera até que tenha um assento ou até que o avião esteja cheio
-        result = yield my_seat | flight.full
+    # ====================
+    # Se ocorreu flight.full
+    if my_seat not in result:
+        # Houve overbooking
+        global QTD_OVERBOOKED_PASSENGERS
+        QTD_OVERBOOKED_PASSENGERS += 1
+        passenger.status = "overbooked"
+        # Fala que n precisa mais do pedido
+        # já que se chegou aqui, tá cheio
+        try:
+            my_seat.cancel()
+        except Exception:
+            pass
+        return
 
-        # verifica se houve overbooking
-        if my_seat not in result:
-            # Houve overbooking
-            global QTD_OVERBOOKED_PASSENGERS
-            QTD_OVERBOOKED_PASSENGERS += 1
-            passenger.status = "overbooked"
-            return
+    # ====================
+    # Se ocorreu my_seat
 
-        # verifica se o passageiro conseguiu pegar um assento
-        flight.available_seats -= 1
-        if flight.available_seats == 0 and not flight.full.triggered:
-            flight.full.succeed()
-
+    # o passageiro conseguiu um assento
+    # precisa manter, n pode cancelar pq vai liberar o assento
+    flight.available_seats -= 1
+    if flight.available_seats == 0 and not flight.full.triggered:
+        flight.full.succeed()

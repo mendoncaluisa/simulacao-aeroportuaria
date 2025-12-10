@@ -61,7 +61,10 @@ class FlightData(NamedTuple):
     qtd_checkin: int
     qtd_overbooked_passengers: int
     valor_multa: float
-    multa_total: int
+    multa_total: float
+    valor_passagem: float
+    passagem_total: float
+    lucro: float
     aviao: dict
 
 
