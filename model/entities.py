@@ -56,6 +56,7 @@ class Flight(object):
 
 class FlightData(NamedTuple):
     qtd_no_show: int
+    qtd_no_show_pos_checkin: int
     qtd_tickets_vendidos: int
     qtd_checkin: int
     qtd_overbooked_passengers: int

@@ -13,6 +13,11 @@ QTD_CHECKIN = 0
 QTD_OVERBOOKED_PASSENGERS = 0
 VALOR_MULTA = 1200
 MULTA_TOTAL = 0
+QTD_NO_SHOW_POS_CHECKIN = 0
+
+
+# Porcentagem maxima de tickets acima da capacidade que podem ser vendidos
+OVERBOOKING_PERC = 0.1
 
 # Simula um vôo só, retorna os seus dados
 def simulate_flight(env):
@@ -22,8 +27,9 @@ def simulate_flight(env):
     plane = planes[plane_key]
 
     # Sorteio de passagens vendidas (seguindo uma distribuição triangular)
-    min = int(plane["capacity"] * 0.9) # Definimos que a lotação mínima para o avião decolar deve ser de 90% de sua capacidade
-    max = plane["capacity"] + plane["overbooking_limit"]
+    min = int(plane["capacity"] * 0.90 ) # Vai vender pelo menos 90% da capacidade
+    max = int(plane["capacity"] * 2 )
+    #max = int(plane["capacity"] * (1 + OVERBOOKING_PERC))
     mean = plane["capacity"]
     sold_tickets = int(random.triangular(min, max, mean))
     QTD_TICKETS_VENDIDOS = sold_tickets
@@ -42,7 +48,8 @@ def simulate_flight(env):
     total_passengers = [passenger for passenger in passengers if passenger.status == 'presente']
 
     # Verifica overbooking, conta quantas pessoas ficaram pra tras
-    yield env.process(verifica_overbooking(env, flight, total_passengers))
+    for passenger in total_passengers:
+        env.process(verifica_overbooking(env, flight, passenger))
 
     # Se TEVE overbooking, calcula a multa
     if QTD_OVERBOOKED_PASSENGERS > 0:
@@ -51,6 +58,7 @@ def simulate_flight(env):
     # Atribui todos os dados coletados a uma classe e retorna ela
     flightData = FlightData(
         qtd_no_show = QTD_NO_SHOW,
+        qtd_no_show_pos_checkin = QTD_NO_SHOW_POS_CHECKIN,
         qtd_tickets_vendidos = QTD_TICKETS_VENDIDOS,
         qtd_checkin = QTD_CHECKIN,
         qtd_overbooked_passengers = QTD_OVERBOOKED_PASSENGERS,
@@ -69,21 +77,21 @@ def simulate_checkin(env, passengers):
     tickets_vendidos = QTD_TICKETS_VENDIDOS
     while tickets_vendidos > 0:
         # Sorteio da probabilidade de no-show antes do check-in
-        fez_noshow_pre_checkin = random.random() < 0.15 # A probabilidade de no_show antes do checkin é maior
+        fez_noshow_pre_checkin = random.random() < 0.08 # A probabilidade de no_show antes do checkin é maior
 
         if fez_noshow_pre_checkin:
             global QTD_NO_SHOW
             QTD_NO_SHOW += 1
             passenger = Passanger( True, False)
             passenger.status = 'no-show pre checkin'
-            print('debug: passageiro fez no-show antes do checkin!\n')
+            #print('debug: passageiro fez no-show antes do checkin!\n')
         else: # Se o passageiro nao fez no_show antes do check-in ele vai pra proxima etapa, que é o check-in.
             passenger = Passanger(False, False)
             passenger.status = 'presente'
             yield env.timeout(random.triangular(0.5,3,1))
             global QTD_CHECKIN
             QTD_CHECKIN += 1
-            print('debug: passageiro fez checkin!\n')
+            #print('debug: passageiro fez checkin!\n')
         passengers.append(passenger)
 
         tickets_vendidos -= 1
@@ -94,17 +102,18 @@ def no_show_pos_checkin(passengers):
     for passenger in passengers:
         if not passenger.fez_noshow_pre_checkin:
             # Sorteio da probabilidade de no-show depois do check-in
-            fez_noshow_pos_checkin = random.random() < 0.05  # A probabilidade de no_show depois do check-in
+            fez_noshow_pos_checkin = random.random() < 0.03  # A probabilidade de no_show depois do check-in
             if fez_noshow_pos_checkin:
-                global QTD_NO_SHOW
-                QTD_NO_SHOW += 1
+                global QTD_NO_SHOW, QTD_NO_SHOW_POS_CHECKIN
+                #QTD_NO_SHOW += 1
                 passenger.fez_noshow_pos_checkin = True
                 passenger.status = 'no-show pos checkin'
-                print('debug: passageiro fez no-show apos o checkin!\n')
+                QTD_NO_SHOW_POS_CHECKIN += 1
+                #print('debug: passageiro fez no-show apos o checkin!\n')
 
 
-# Caçciça a quantidade de passageiros que sofreram overbooking
-def verifica_overbooking(env, flight, passengers):
+# Calcula a quantidade de passageiros que sofreram overbooking
+def verifica_overbooking(env, flight, passenger):
 
     with flight.seat.request() as my_seat:
         # espera até que tenha um assento ou até que o avião esteja cheio
@@ -115,10 +124,11 @@ def verifica_overbooking(env, flight, passengers):
             # Houve overbooking
             global QTD_OVERBOOKED_PASSENGERS
             QTD_OVERBOOKED_PASSENGERS += 1
+            passenger.status = "overbooked"
             return
 
         # verifica se o passageiro conseguiu pegar um assento
         flight.available_seats -= 1
-        if flight.available_seats == 0:
+        if flight.available_seats == 0 and not flight.full.triggered:
             flight.full.succeed()
 
