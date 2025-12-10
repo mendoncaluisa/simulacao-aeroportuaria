@@ -76,6 +76,7 @@ def simulate_checkin(env, passengers):
             QTD_NO_SHOW += 1
             passenger = Passanger( True, False)
             passenger.status = 'no-show pre checkin'
+            print('debug: passageiro fez no-show antes do checkin!\n')
         else: # Se o passageiro nao fez no_show antes do check-in ele vai pra proxima etapa, que é o check-in.
             passenger = Passanger(False, False)
             passenger.status = 'presente'
@@ -99,6 +100,7 @@ def no_show_pos_checkin(passengers):
                 QTD_NO_SHOW += 1
                 passenger.fez_noshow_pos_checkin = True
                 passenger.status = 'no-show pos checkin'
+                print('debug: passageiro fez no-show apos o checkin!\n')
 
 
 # Caçciça a quantidade de passageiros que sofreram overbooking
